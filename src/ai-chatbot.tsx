@@ -1,52 +1,62 @@
-import { useState } from 'react'
-import { Send } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState } from 'react';
+import { Send } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Database } from 'sql.js';
 
 interface Message {
-  id: number
-  text: string
-  sender: 'user' | 'ai'
+  id: number;
+  text: string;
+  sender: 'user' | 'ai';
 }
 
 interface Event {
-  id: number
-  title: string
-  date: string
-  userId: number
+  id: number;
+  title: string;
+  date: string;
+  userId: number;
 }
 
-export default function Component() {
+interface ComponentProps {
+  db: Database | null; 
+}
+
+export default function Component({ db }: ComponentProps) {
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, text: "Hello! I can help you generate SQL queries for your calendar events database. What would you like to know?", sender: 'ai' },
-  ])
-  const [input, setInput] = useState('')
+  ]);
+  const [input, setInput] = useState('');
+  const [events, setEvents] = useState<Event[]>([]);
 
   const handleSend = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (input.trim()) {
-      const newMessage: Message = { id: messages.length + 1, text: input, sender: 'user' }
-      setMessages([...messages, newMessage])
-      setInput('')
+      const newMessage: Message = { id: messages.length + 1, text: input, sender: 'user' };
+      setMessages([...messages, newMessage]);
+      setInput('');
 
       setTimeout(() => {
-        const aiResponse: Message = { id: messages.length + 2, text: "I've generated a SQL query based on your request. The results are displayed in the table below the database illustration.", sender: 'ai' }
-        setMessages(prevMessages => [...prevMessages, aiResponse])
-      }, 1000)
-    }
-  }
+        const aiResponse: Message = { id: messages.length + 2, text: "I've generated a SQL query based on your request. Here are the results.", sender: 'ai' };
+        setMessages(prevMessages => [...prevMessages, aiResponse]);
 
-  const mockEvents: Event[] = [
-    { id: 1, title: "Team Meeting", date: "2024-10-06", userId: 1 },
-    { id: 2, title: "Project Deadline", date: "2024-10-10", userId: 2 },
-    { id: 3, title: "Lunch with Client", date: "2024-10-08", userId: 1 },
-    { id: 4, title: "Conference Call", date: "2024-10-07", userId: 3 },
-    { id: 5, title: "Birthday Party", date: "2024-10-15", userId: 2 },
-  ]
+        if (db) {
+          const sqlQuery = "SELECT * FROM event"; 
+          const result = db.exec(sqlQuery);
+          const fetchedEvents: Event[] = result[0]?.values.map((row: any[]) => ({
+            id: row[0],
+            title: row[1],
+            date: row[2],
+            userId: row[3],
+          })) || [];
+          setEvents(fetchedEvents);
+        }
+      }, 1000);
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row h-screen max-w-6xl mx-auto p-4 gap-4">
@@ -58,16 +68,8 @@ export default function Component() {
           <ScrollArea className="flex-grow mb-4">
             <div className="space-y-4">
               {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[70%]  p-2 ${message.sender === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary text-secondary-foreground'
-                      }`}
-                  >
+                <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[70%] p-2 ${message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
                     {message.text}
                   </div>
                 </div>
@@ -75,13 +77,7 @@ export default function Component() {
             </div>
           </ScrollArea>
           <form onSubmit={handleSend} className="flex gap-2">
-            <Input
-              type="text"
-              placeholder="Ask about your calendar events..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              className="flex-grow"
-            />
+            <Input type="text" placeholder="Ask about your calendar events..." value={input} onChange={(e) => setInput(e.target.value)} className="flex-grow" />
             <Button type="submit" className="bg-blue-600 text-white">
               <Send className="h-4 w-4" />
             </Button>
@@ -114,7 +110,7 @@ export default function Component() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockEvents.map((event) => (
+                  {events.map((event) => (
                     <TableRow key={event.id}>
                       <TableCell>{event.id}</TableCell>
                       <TableCell>{event.title}</TableCell>
@@ -129,5 +125,5 @@ export default function Component() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
