@@ -1,11 +1,10 @@
-import './App.css'
+import './App.css';
+import Component from './ai-chatbot';
 
 function App() {
   return (
-    <>
-      <p>hi</p>
-    </>
-  )
+    <Component />
+  );
 }
 
-export default App
+export default App;
