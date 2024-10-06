@@ -11,6 +11,20 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
+interface Event {
+  id: number;
+  title: string;
+  date: string;
+  userId: number;
+}
+
+type Row = (string | number | null | Uint8Array)[];
+
+interface SQLResult {
+  columns: string[];
+  values: Row[];
+}
+
 const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 const randomDate = () => {
@@ -85,7 +99,8 @@ const generateSQLQuery = async (userInput: string, strategy: string) => {
       temperature: 0.7,
     });
 
-    let sqlQuery = response.choices[0]?.message?.content.trim() || null;
+    let sqlQuery = response.choices?.[0]?.message?.content?.trim() || null;
+
     if (sqlQuery) {
       sqlQuery = sanitizeForJustSql(sqlQuery);
     }
@@ -97,19 +112,27 @@ const generateSQLQuery = async (userInput: string, strategy: string) => {
   }
 };
 
-const executeSQLQuery = (query: string) => {
+const executeSQLQuery = (query: string): string | Row[] | null => {
+  if (!db) {
+    return 'Error: Database is not initialized';
+  }
+
   try {
-    if (db) {
-      const result = db.exec(query);
-      return result.length > 0 ? result[0].values : null;
-    }
+    const result: SQLResult[] = db.exec(query);
+
+    return result.length > 0 ? result[0].values : null;
   } catch (error) {
-    console.error('Error executing SQL query:', error);
-    return `Error: ${error.message}`;
+    if (error instanceof Error) {
+      console.error('Error executing SQL query:', error);
+      return `Error: ${error.message}`;
+    } else {
+      console.error('Unknown error:', error);
+      return 'Error: An unknown error occurred';
+    }
   }
 };
 
-const getFriendlyResponse = async (queryResult: string, question: string) => {
+const getFriendlyResponse = async (queryResult: string) => {
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -119,15 +142,39 @@ const getFriendlyResponse = async (queryResult: string, question: string) => {
       max_tokens: 50,
       temperature: 0.5,
     });
-    return response.choices[0]?.message?.content.trim() || 'No results found.';
+
+    const content = response.choices?.[0]?.message?.content?.trim();
+    return content || 'No results found.';
   } catch (error) {
     console.error('Error generating friendly response:', error);
     return 'Error generating friendly response.';
   }
 };
 
+const fetchEvents = (): Event[] => {
+  if (!db) {
+    return [];
+  }
+  try {
+    const result = db.exec("SELECT * FROM event");
+    if (result.length > 0) {
+      const rows = result[0].values;
+      return rows.map(row => ({
+        id: row[0] as number,
+        title: row[1] as string,
+        date: row[2] as string,
+        userId: row[3] as number
+      }));
+    }
+  } catch (error) {
+    console.error("Error fetching events: ", error);
+  }
+  return [];
+};
+
 export default function App() {
   const [initialized, setInitialized] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
 
   const initializeDatabase = async () => {
     const SQL = await initSqlJs({ locateFile: file => `https://sql.js.org/dist/${file}` });
@@ -169,6 +216,8 @@ export default function App() {
       `);
     }
 
+    const eventsData = fetchEvents();
+    setEvents(eventsData);
     setInitialized(true);
     console.log('Database initialized and random data inserted');
   };
@@ -181,10 +230,10 @@ export default function App() {
     <div>
       {initialized ? (
         <Component
-          db={db}
           generateSQLQuery={generateSQLQuery}
           executeSQLQuery={executeSQLQuery}
           getFriendlyResponse={getFriendlyResponse}
+          events={events}
         />
       ) : (
         <p>Initializing database...</p>

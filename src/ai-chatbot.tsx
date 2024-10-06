@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
+import Schema from "@/public/schema.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Message {
   id: number;
@@ -13,14 +14,23 @@ interface Message {
   sender: 'user' | 'ai';
 }
 
-interface ComponentProps {
-  db: any;
-  generateSQLQuery: (userInput: string, strategy: string) => Promise<string | null>;
-  executeSQLQuery: (query: string) => any;
-  getFriendlyResponse: (queryResult: string, question: string) => Promise<string>;
+interface Event {
+  id: number;
+  title: string;
+  date: string;
+  userId: number;
 }
 
-export default function Component({ generateSQLQuery, executeSQLQuery, getFriendlyResponse }: ComponentProps) {
+type Row = (string | number | null | Uint8Array)[];
+
+interface ComponentProps {
+  generateSQLQuery: (userInput: string, strategy: string) => Promise<string | null>;
+  executeSQLQuery: (query: string) => string | Row[] | null;
+  getFriendlyResponse: (queryResult: string) => Promise<string>;
+  events: Event[];
+}
+
+export default function Component({ generateSQLQuery, executeSQLQuery, getFriendlyResponse, events }: ComponentProps) {
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, text: "Hello! I can help you generate SQL queries for your calendar events database. What would you like to know?", sender: 'ai' },
   ]);
@@ -40,17 +50,21 @@ export default function Component({ generateSQLQuery, executeSQLQuery, getFriend
         setMessages(prevMessages => [...prevMessages, aiMessage]);
 
         const queryResult = executeSQLQuery(sqlQuery);
+
         if (typeof queryResult === 'string' && queryResult.startsWith('Error:')) {
           const aiErrorMessage: Message = { id: messages.length + 3, text: queryResult, sender: 'ai' };
           setMessages(prevMessages => [...prevMessages, aiErrorMessage]);
-        } else if (queryResult) {
+        } else if (Array.isArray(queryResult)) {
           const rawQueryResponse = JSON.stringify(queryResult);
           const aiMessageQueryResult: Message = { id: messages.length + 3, text: `Query Result: ${rawQueryResponse}`, sender: 'ai' };
           setMessages(prevMessages => [...prevMessages, aiMessageQueryResult]);
 
-          const friendlyResponse = await getFriendlyResponse(rawQueryResponse, input);
+          const friendlyResponse = await getFriendlyResponse(rawQueryResponse);
           const aiMessageFriendly: Message = { id: messages.length + 4, text: friendlyResponse, sender: 'ai' };
           setMessages(prevMessages => [...prevMessages, aiMessageFriendly]);
+        } else if (queryResult === null) {
+          const aiNoResultMessage: Message = { id: messages.length + 3, text: 'No results found.', sender: 'ai' };
+          setMessages(prevMessages => [...prevMessages, aiNoResultMessage]);
         }
       }
     }
@@ -108,13 +122,42 @@ export default function Component({ generateSQLQuery, executeSQLQuery, getFriend
         </CardContent>
       </Card>
 
-      <div className="w-full md:w-1/2 flex flex-col h-full gap-4">
-        <Card className="flex-grow">
+      <div className="w-full md:w-1/2 flex flex-col gap-4">
+        <Card>
           <CardHeader>
             <CardTitle>Database Illustration</CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center items-center">
-            <Skeleton className="h-48 w-48 " />
+            <img src={Schema}></img>
+          </CardContent>
+        </Card>
+        <Card className="flex-grow overflow-hidden">
+          <CardHeader>
+            <CardTitle>Event Data</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[calc(100vh-24rem)] md:h-[calc(50vh-8rem)]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>User ID</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {events.map((event) => (
+                    <TableRow key={event.id}>
+                      <TableCell>{event.id}</TableCell>
+                      <TableCell>{event.title}</TableCell>
+                      <TableCell>{event.date}</TableCell>
+                      <TableCell>{event.userId}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
