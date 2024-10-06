@@ -128,15 +128,15 @@ export default function Component({ generateSQLQuery, executeSQLQuery, getFriend
             <CardTitle>Database Illustration</CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center items-center">
-            <img src={Schema}></img>
+            <img src={Schema} alt="Database Schema" />
           </CardContent>
         </Card>
-        <Card className="flex-grow overflow-hidden">
+        <Card className="flex flex-col flex-grow overflow-hidden">
           <CardHeader>
-            <CardTitle>Event Data</CardTitle>
+            <CardTitle>Event Table</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[calc(100vh-24rem)] md:h-[calc(50vh-8rem)]">
+          <CardContent className="p-0 flex flex-col flex-grow overflow-hidden">
+            <ScrollArea className="flex-grow overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

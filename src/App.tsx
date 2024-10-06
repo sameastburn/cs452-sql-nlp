@@ -219,7 +219,6 @@ export default function App() {
     const eventsData = fetchEvents();
     setEvents(eventsData);
     setInitialized(true);
-    console.log('Database initialized and random data inserted');
   };
 
   useEffect(() => {
@@ -236,7 +235,7 @@ export default function App() {
           events={events}
         />
       ) : (
-        <p>Initializing database...</p>
+        <></>
       )}
     </div>
   );
